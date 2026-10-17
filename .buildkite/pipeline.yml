@@ -1,0 +1,9 @@
+# Reference only: configure Buildkite with `janus-ci bootstrap`.
+# The protected controller uploads the image-owned two-lane job graph.
+steps:
+  - label: Protected bootstrap
+    key: janus-bootstrap
+    command: janus-ci bootstrap
+    agents:
+      queue: janus-linux
+    timeout_in_minutes: 10

@@ -6,4 +6,5 @@ include CONTRIBUTING.md
 include plugin.yaml
 recursive-include src *.py
 recursive-include tests *.py
+recursive-include scripts/buildkite *.py
 recursive-include .github/workflows *.yml
