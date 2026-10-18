@@ -13,7 +13,7 @@ permissions:
 # Review fork workflow changes before approving: routing is not a runner access boundary.
 jobs:
   test:
-    runs-on: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && 'ubuntu-24.04' || fromJSON('["self-hosted","Linux","X64"]') }}
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

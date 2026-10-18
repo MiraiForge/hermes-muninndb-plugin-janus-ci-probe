@@ -1,9 +1,10 @@
 # Protected Janus Python CI preparation
 
-This is additive ordinary CI preparation. Automatic main-push and pull-request
-Actions checks remain authoritative. Fork pull requests and manual dispatch use
-read-only hosted Ubuntu workers; checkout never persists credentials. Both Python
-lanes retain `fail-fast: false`, so one failure does not cancel the other lane.
+This is additive ordinary CI preparation. Automatic main-push, all pull-request
+and manual Actions checks use read-only hosted Ubuntu 24.04 workers while native
+commissioning proceeds; checkout never persists credentials. Both Python lanes
+retain `fail-fast: false`, so one failure does not cancel the other lane. Hosted
+routing keeps automatic coverage working until a separate reviewed Janus cutover.
 
 The pipeline reference calls `janus-ci bootstrap`; configure and verify the
 image-owned `hermes-muninndb-shadow-ci` policy before native use. No repository
@@ -17,8 +18,9 @@ pipeline file grants admission. Each independent lane preserves the original
 
 The shared image supplies checksum-pinned Python, venv/ensurepip and TLS support.
 Jobs run without credentials as UID 10001 in fresh restricted containers. The
-ordinary policy is not yet admitted by the live manifest; registration, trusted
-source/merge validation and statuses remain commissioning work.
+native admission, trusted source/merge validation and statuses are tracked by
+commissioning evidence for each exact source and image. A successful native run
+verifies only that recorded revision; automatic Actions remains until cutover.
 
 Each lane creates private check and wheel virtualenvs. It preserves the original
 pip upgrade, editable development install, pytest, wrapper compilation, package
