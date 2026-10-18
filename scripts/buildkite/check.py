@@ -136,7 +136,8 @@ def run_lane() -> None:
             "python", "-m", "py_compile", "__init__.py", "cli.py",
             "src/hermes_muninndb_plugin/__init__.py", "src/hermes_muninndb_plugin/cli.py",
         ], env)
-        run(["python", "-m", "build"], env)
+        dist = work / "dist"
+        run(["python", "-m", "build", "--outdir", str(dist)], env)
 
         wheel_venv = work / "wheel-venv"
         run(["python", "-m", "venv", str(wheel_venv)], env)
@@ -147,9 +148,9 @@ def run_lane() -> None:
         }
         wheel_python = str(wheel_venv / "bin" / "python")
         run([wheel_python, "-m", "pip", "install", "--upgrade", "pip"], wheel_env)
-        wheels = sorted((ROOT / "dist").glob("*.whl"))
-        if not wheels:
-            raise RuntimeError("Build produced no wheel for the installation smoke test")
+        wheels = sorted(dist.glob("*.whl"))
+        if len(wheels) != 1:
+            raise RuntimeError(f"Expected exactly one built wheel; found {len(wheels)}")
         run([str(wheel_venv / "bin" / "pip"), "install", str(wheels[0])], wheel_env)
         result = work / "result.json"
         with result.open("w") as output:

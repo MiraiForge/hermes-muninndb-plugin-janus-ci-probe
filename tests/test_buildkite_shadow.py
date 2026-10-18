@@ -38,9 +38,10 @@ def test_preserves_stages_and_disables_real_hermes_activation(tmp_path, monkeypa
 
     def fake_run(command, env, **kwargs):
         calls.append((command, dict(env)))
-        if command == ["python", "-m", "build"]:
-            (tmp_path / "dist").mkdir()
-            (tmp_path / "dist" / "plugin.whl").write_bytes(b"test wheel")
+        if command[:3] == ["python", "-m", "build"]:
+            output = Path(command[4])
+            output.mkdir()
+            (output / "plugin.whl").write_bytes(b"test wheel")
 
     monkeypatch.setattr(shadow, "run", fake_run)
     shadow.run_lane()
@@ -51,7 +52,7 @@ def test_preserves_stages_and_disables_real_hermes_activation(tmp_path, monkeypa
         ["python", "-m", "pytest"],
         ["python", "-m", "py_compile", "__init__.py", "cli.py",
          "src/hermes_muninndb_plugin/__init__.py", "src/hermes_muninndb_plugin/cli.py"],
-        ["python", "-m", "build"],
+        ["python", "-m", "build", "--outdir", str(Path(calls[0][1]["HOME"]).parent / "dist")],
     ]
     installer = commands[-2]
     assert installer[0].endswith("wheel-venv/bin/hermes-muninndb-install")
@@ -70,6 +71,45 @@ def test_command_failure_preserves_status(monkeypatch):
     monkeypatch.setattr(shadow, "run_lane", fail)
     monkeypatch.setattr(shadow, "runtime_matches", lambda lane: True)
     assert shadow.main(["3.11"]) == 23
+
+
+@pytest.mark.parametrize("built_wheels", [("current.whl",), (), ("first.whl", "second.whl")],
+                         ids=["stale-checkout-wheel", "zero-wheels", "multiple-wheels"])
+def test_private_build_uses_exactly_one_current_wheel(tmp_path, monkeypatch, built_wheels):
+    project = tmp_path / "project"
+    checkout_dist = project / "dist"
+    checkout_dist.mkdir(parents=True)
+    stale = checkout_dist / "000-stale.whl"
+    stale.write_bytes(b"earlier build")
+    monkeypatch.setattr(shadow, "ROOT", project)
+    monkeypatch.setattr(shadow, "runtime_matches", lambda lane: True)
+    installed = []
+    homes = []
+
+    def fake_run(command, env, **kwargs):
+        homes.append(Path(env["HOME"]))
+        if command[:3] == ["python", "-m", "build"]:
+            output = Path(command[command.index("--outdir") + 1]) if "--outdir" in command else checkout_dist
+            output.mkdir(exist_ok=True)
+            for name in built_wheels:
+                (output / name).write_bytes(b"current build")
+        if command[0].endswith("wheel-venv/bin/pip"):
+            wheel = Path(command[-1])
+            installed.append((wheel, wheel.read_bytes()))
+
+    monkeypatch.setattr(shadow, "run", fake_run)
+    assert shadow.main(["3.11"]) == (0 if len(built_wheels) == 1 else 1)
+    if len(built_wheels) == 1:
+        assert len(installed) == 1
+        wheel, contents = installed[0]
+        assert wheel == homes[0].parent / "dist" / built_wheels[0]
+        assert contents == b"current build"
+        assert not wheel.exists()
+    else:
+        assert installed == []
+    assert stale.read_bytes() == b"earlier build"
+    assert list(checkout_dist.iterdir()) == [stale]
+    assert homes and all(not home.parent.exists() for home in homes)
 
 
 def test_wrong_runtime_is_rejected_before_any_commands(monkeypatch):
